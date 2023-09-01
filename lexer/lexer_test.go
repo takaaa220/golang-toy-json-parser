@@ -7,48 +7,48 @@ import (
 
 func TestLex(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    []Token
-		wantErr bool
+		input    string
+		expected []Token
+		err      string
 	}{
 		{
 			input: "123",
-			want: []Token{
+			expected: []Token{
 				{Type: TokenNumber, Literal: "123"},
 			},
-			wantErr: false,
+			err: "",
 		},
 		{
 			input: "null",
-			want: []Token{
+			expected: []Token{
 				{Type: TokenNull, Literal: "null"},
 			},
-			wantErr: false,
+			err: "",
 		},
 		{
 			input: "true",
-			want: []Token{
-				{Type: TokenBoolean, Literal: "true"},
+			expected: []Token{
+				{Type: TokenTrue, Literal: "true"},
 			},
-			wantErr: false,
+			err: "",
 		},
 		{
 			input: "false",
-			want: []Token{
-				{Type: TokenBoolean, Literal: "false"},
+			expected: []Token{
+				{Type: TokenFalse, Literal: "false"},
 			},
-			wantErr: false,
+			err: "",
 		},
 		{
 			input: `"Hello, World!"`,
-			want: []Token{
+			expected: []Token{
 				{Type: TokenString, Literal: "Hello, World!"},
 			},
-			wantErr: false,
+			err: "",
 		},
 		{
 			input: `{"Hello": "World!", "Foo": "Bar"}`,
-			want: []Token{
+			expected: []Token{
 				{Type: TokenLeftBrace, Literal: "{"},
 				{Type: TokenString, Literal: "Hello"},
 				{Type: TokenColon, Literal: ":"},
@@ -59,10 +59,11 @@ func TestLex(t *testing.T) {
 				{Type: TokenString, Literal: "Bar"},
 				{Type: TokenRightBrace, Literal: "}"},
 			},
+			err: "",
 		},
 		{
 			input: "[1, 2, 3]",
-			want: []Token{
+			expected: []Token{
 				{Type: TokenLeftBracket, Literal: "["},
 				{Type: TokenNumber, Literal: "1"},
 				{Type: TokenComma, Literal: ","},
@@ -71,23 +72,40 @@ func TestLex(t *testing.T) {
 				{Type: TokenNumber, Literal: "3"},
 				{Type: TokenRightBracket, Literal: "]"},
 			},
-			wantErr: false,
+			err: "",
 		},
 		{
-			input:   "aaa",
-			want:    nil,
-			wantErr: true,
+			input:    "aaa",
+			expected: nil,
+			err:      "unexpected property 'aaa', From: 0, To: 2",
+		},
+		{
+			input:    `"Hello World!`,
+			expected: nil,
+			err:      "syntax error, From: 0, To: 12",
+		},
+		{
+			input:    `{ "Hello": "World! }`,
+			expected: nil,
+			err:      "syntax error, From: 11, To: 19",
+		},
+		{
+			input:    `{ "Hello": 100, "World": false, "!!!": True }`,
+			expected: nil,
+			err:      "unexpected character 'T', From: 40, To: 40",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got, err := Lex(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Lex() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if err != nil {
+				if tt.err == "" || err.Error() != tt.err {
+					t.Errorf("Lex() error = %v", err)
+					return
+				}
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Lex() = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("Lex() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
