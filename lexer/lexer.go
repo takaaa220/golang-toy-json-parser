@@ -12,20 +12,36 @@ type Lexer struct {
 	position int
 }
 
-func New(input string) *Lexer {
+func NewLexer(input string) *Lexer {
 	return &Lexer{
 		reader:   strings.NewReader(input),
 		position: 0,
 	}
 }
 
+func (lexer *Lexer) PeekToken() (Token, error) {
+	currentPosition := lexer.position
+	currentReader := *lexer.reader
+
+	token, err := lexer.NextToken()
+
+	lexer.position = currentPosition
+	lexer.reader = &currentReader
+
+	if err != nil {
+		return Token{}, err
+	}
+
+	return token, nil
+}
+
 func (lexer *Lexer) NextToken() (Token, error) {
 	for {
-		r, _, err := lexer.reader.ReadRune()
+		r, _, err := lexer.next()
 		if err != nil {
+			lexer.back()
 			break
 		}
-		lexer.position++
 
 		switch {
 		case r == '{':
@@ -45,11 +61,10 @@ func (lexer *Lexer) NextToken() (Token, error) {
 
 			start := lexer.position
 			for {
-				r, _, err := lexer.reader.ReadRune()
+				r, _, err := lexer.next()
 				if err != nil {
-					return Token{}, &LexerError{Message: "syntax error", From: start - 1, To: lexer.position - 1}
+					return Token{}, &LexerError{Message: "syntax error", From: start - 1, To: lexer.position - 2}
 				}
-				lexer.position++
 
 				if r == '"' {
 					break
@@ -64,15 +79,9 @@ func (lexer *Lexer) NextToken() (Token, error) {
 
 			start := lexer.position
 			for {
-				ss, _, err := lexer.reader.ReadRune()
-				if err != nil {
-					break
-				}
-				lexer.position++
-
-				if !unicode.IsDigit(ss) && ss != '.' {
-					lexer.reader.UnreadRune()
-					lexer.position--
+				ss, _, err := lexer.next()
+				if err != nil || !unicode.IsDigit(ss) && ss != '.' {
+					lexer.back()
 
 					break
 				}
@@ -91,15 +100,9 @@ func (lexer *Lexer) NextToken() (Token, error) {
 
 			start := lexer.position
 			for {
-				ss, _, err := lexer.reader.ReadRune()
-				if err != nil {
-					break
-				}
-				lexer.position++
-
-				if !isLowerLetter(ss) {
-					lexer.reader.UnreadRune()
-					lexer.position--
+				ss, _, err := lexer.next()
+				if err != nil || !isLowerLetter(ss) {
+					lexer.back()
 					break
 				}
 
@@ -125,6 +128,20 @@ func (lexer *Lexer) NextToken() (Token, error) {
 	}
 
 	return Token{Type: TokenEOF, Literal: ""}, nil
+}
+
+func (lexer *Lexer) next() (rune, int, error) {
+	r, i, e := lexer.reader.ReadRune()
+	lexer.position++
+
+	return r, i, e
+}
+
+func (lexer *Lexer) back() error {
+	e := lexer.reader.UnreadRune()
+	lexer.position--
+
+	return e
 }
 
 func isLowerLetter(r rune) bool {

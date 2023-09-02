@@ -1,9 +1,30 @@
 package lexer
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
+
+func Lex(input string) ([]Token, error) {
+	tokens := []Token{}
+
+	lexer := NewLexer(input)
+	for {
+		token, err := lexer.NextToken()
+		if err != nil {
+			return nil, err
+		}
+
+		if token.Type == TokenEOF {
+			break
+		}
+
+		tokens = append(tokens, token)
+	}
+
+	return tokens, nil
+}
 
 func TestLex(t *testing.T) {
 	tests := []struct {
@@ -127,22 +148,100 @@ func TestLex(t *testing.T) {
 	}
 }
 
-func Lex(input string) ([]Token, error) {
-	tokens := []Token{}
-
-	lexer := New(input)
-	for {
-		token, err := lexer.NextToken()
-		if err != nil {
-			return nil, err
-		}
-
-		if token.Type == TokenEOF {
-			break
-		}
-
-		tokens = append(tokens, token)
+func TestLexer_PeekToken1(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected Token
+	}{
+		{
+			input: "123",
+			expected: Token{
+				Type:    TokenNumber,
+				Literal: "123",
+			},
+		},
+		{
+			input: "true",
+			expected: Token{
+				Type:    TokenTrue,
+				Literal: "true",
+			},
+		},
+		{
+			input: `"HELLO"`,
+			expected: Token{
+				Type:    TokenString,
+				Literal: "HELLO",
+			},
+		},
+		{
+			input: `{"Hello": "World!"}`,
+			expected: Token{
+				Type:    TokenLeftBrace,
+				Literal: "{",
+			},
+		},
 	}
 
-	return tokens, nil
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			lexer := NewLexer(tt.input)
+
+			lexer.PeekToken()
+			got, err := lexer.PeekToken()
+			if (err != nil) && (tt.expected != Token{}) {
+				t.Errorf("Lexer.PeekToken() error = %v", err)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("Lexer.PeekToken() = %v, expected %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestLexer_PeekToken(t *testing.T) {
+	tests := []struct {
+		input    string
+		current  int
+		expected Token
+	}{
+		{
+			input:   "123",
+			current: 1,
+			expected: Token{
+				Type:    TokenEOF,
+				Literal: "",
+			},
+		},
+		{
+			input:   `{"Hello": "World!"}`,
+			current: 1,
+			expected: Token{
+				Type:    TokenString,
+				Literal: "Hello",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s, current: %d", tt.input, tt.current), func(t *testing.T) {
+			lexer := NewLexer(tt.input)
+			for i := 0; i < tt.current; i++ {
+				_, err := lexer.NextToken()
+				if err != nil {
+					t.Errorf("Lexer.PeekToken() error = %v", err)
+				}
+			}
+
+			lexer.PeekToken()
+			got, err := lexer.PeekToken()
+			if (err != nil) && (tt.expected != Token{}) {
+				t.Errorf("Lexer.PeekToken() error = %v", err)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("Lexer.PeekToken() = %v, expected %v", got, tt.expected)
+			}
+		})
+	}
 }
