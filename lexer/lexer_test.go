@@ -126,3 +126,23 @@ func TestLex(t *testing.T) {
 		})
 	}
 }
+
+func Lex(input string) ([]Token, error) {
+	tokens := []Token{}
+
+	lexer := New(input)
+	for {
+		token, err := lexer.NextToken()
+		if err != nil {
+			return nil, err
+		}
+
+		if token.Type == TokenEOF {
+			break
+		}
+
+		tokens = append(tokens, token)
+	}
+
+	return tokens, nil
+}

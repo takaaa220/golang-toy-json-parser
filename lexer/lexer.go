@@ -7,16 +7,6 @@ import (
 	"unicode"
 )
 
-type LexerError struct {
-	Message string
-	From    int
-	To      int
-}
-
-func (e *LexerError) Error() string {
-	return fmt.Sprintf("%s, From: %d, To: %d", e.Message, e.From, e.To)
-}
-
 type TokenType int
 
 const (
@@ -25,6 +15,7 @@ const (
 	TokenTrue
 	TokenFalse
 	TokenNull
+	TokenEOF
 	TokenColon        // :
 	TokenComma        // ,
 	TokenLeftBrace    // {
@@ -38,45 +29,59 @@ type Token struct {
 	Literal string
 }
 
-func isLowerLetter(r rune) bool {
-	return unicode.IsLetter(r) && unicode.IsLower(r)
+type LexerError struct {
+	Message string
+	From    int
+	To      int
 }
 
-func Lex(input string) ([]Token, error) {
-	reader := strings.NewReader(input)
-	position := 0
-	tokens := []Token{}
+func (e *LexerError) Error() string {
+	return fmt.Sprintf("%s, From: %d, To: %d", e.Message, e.From, e.To)
+}
 
+type Lexer struct {
+	reader   *strings.Reader
+	position int
+}
+
+func New(input string) *Lexer {
+	return &Lexer{
+		reader:   strings.NewReader(input),
+		position: 0,
+	}
+}
+
+func (lexer *Lexer) NextToken() (Token, error) {
 	for {
-		r, _, err := reader.ReadRune()
+		r, _, err := lexer.reader.ReadRune()
 		if err != nil {
 			break
 		}
-		position++
+		lexer.position++
 
 		switch {
 		case r == '{':
-			tokens = append(tokens, Token{Type: TokenLeftBrace, Literal: string(r)})
+			return Token{Type: TokenLeftBrace, Literal: string(r)}, nil
 		case r == '}':
-			tokens = append(tokens, Token{Type: TokenRightBrace, Literal: string(r)})
+			return Token{Type: TokenRightBrace, Literal: string(r)}, nil
 		case r == '[':
-			tokens = append(tokens, Token{Type: TokenLeftBracket, Literal: string(r)})
+			return Token{Type: TokenLeftBracket, Literal: string(r)}, nil
 		case r == ']':
-			tokens = append(tokens, Token{Type: TokenRightBracket, Literal: string(r)})
+			return Token{Type: TokenRightBracket, Literal: string(r)}, nil
 		case r == ':':
-			tokens = append(tokens, Token{Type: TokenColon, Literal: string(r)})
+			return Token{Type: TokenColon, Literal: string(r)}, nil
 		case r == ',':
-			tokens = append(tokens, Token{Type: TokenComma, Literal: string(r)})
+			return Token{Type: TokenComma, Literal: string(r)}, nil
 		case r == '"':
 			stringLiteral := ""
 
-			start := position
+			start := lexer.position
 			for {
-				r, _, err := reader.ReadRune()
+				r, _, err := lexer.reader.ReadRune()
 				if err != nil {
-					return nil, &LexerError{Message: "syntax error", From: start - 1, To: position - 1}
+					return Token{}, &LexerError{Message: "syntax error", From: start - 1, To: lexer.position - 1}
 				}
-				position++
+				lexer.position++
 
 				if r == '"' {
 					break
@@ -85,21 +90,21 @@ func Lex(input string) ([]Token, error) {
 				stringLiteral += string(r)
 			}
 
-			tokens = append(tokens, Token{Type: TokenString, Literal: stringLiteral})
+			return Token{Type: TokenString, Literal: stringLiteral}, nil
 		case unicode.IsDigit(r):
 			numberLiteral := string(r)
 
-			start := position
+			start := lexer.position
 			for {
-				ss, _, err := reader.ReadRune()
+				ss, _, err := lexer.reader.ReadRune()
 				if err != nil {
 					break
 				}
-				position++
+				lexer.position++
 
 				if !unicode.IsDigit(ss) && ss != '.' {
-					reader.UnreadRune()
-					position--
+					lexer.reader.UnreadRune()
+					lexer.position--
 
 					break
 				}
@@ -109,24 +114,24 @@ func Lex(input string) ([]Token, error) {
 
 			_, err = strconv.ParseFloat(numberLiteral, 64)
 			if err != nil {
-				return nil, &LexerError{Message: fmt.Sprintf("unexpected number %s", numberLiteral), From: start - 1, To: position - 1}
+				return Token{}, &LexerError{Message: fmt.Sprintf("unexpected number %s", numberLiteral), From: start - 1, To: lexer.position - 1}
 			}
 
-			tokens = append(tokens, Token{Type: TokenNumber, Literal: numberLiteral})
+			return Token{Type: TokenNumber, Literal: numberLiteral}, nil
 		case isLowerLetter(r):
 			primitiveLiteral := string(r)
 
-			start := position
+			start := lexer.position
 			for {
-				ss, _, err := reader.ReadRune()
+				ss, _, err := lexer.reader.ReadRune()
 				if err != nil {
 					break
 				}
-				position++
+				lexer.position++
 
 				if !isLowerLetter(ss) {
-					reader.UnreadRune()
-					position--
+					lexer.reader.UnreadRune()
+					lexer.position--
 					break
 				}
 
@@ -136,20 +141,24 @@ func Lex(input string) ([]Token, error) {
 			// it may be better to check in parser not lexer whether literal value is valid or not
 			switch primitiveLiteral {
 			case "true":
-				tokens = append(tokens, Token{Type: TokenTrue, Literal: primitiveLiteral})
+				return Token{Type: TokenTrue, Literal: primitiveLiteral}, nil
 			case "false":
-				tokens = append(tokens, Token{Type: TokenFalse, Literal: primitiveLiteral})
+				return Token{Type: TokenFalse, Literal: primitiveLiteral}, nil
 			case "null":
-				tokens = append(tokens, Token{Type: TokenNull, Literal: primitiveLiteral})
+				return Token{Type: TokenNull, Literal: primitiveLiteral}, nil
 			default:
-				return nil, &LexerError{Message: fmt.Sprintf("unexpected property '%s'", primitiveLiteral), From: start - 1, To: position - 1}
+				return Token{}, &LexerError{Message: fmt.Sprintf("unexpected property '%s'", primitiveLiteral), From: start - 1, To: lexer.position - 1}
 			}
 		case unicode.IsSpace(r):
 			continue
 		default:
-			return nil, &LexerError{Message: fmt.Sprintf("unexpected character '%s'", string(r)), From: position - 1, To: position - 1}
+			return Token{}, &LexerError{Message: fmt.Sprintf("unexpected character '%s'", string(r)), From: lexer.position - 1, To: lexer.position - 1}
 		}
 	}
 
-	return tokens, nil
+	return Token{Type: TokenEOF, Literal: ""}, nil
+}
+
+func isLowerLetter(r rune) bool {
+	return unicode.IsLetter(r) && unicode.IsLower(r)
 }
