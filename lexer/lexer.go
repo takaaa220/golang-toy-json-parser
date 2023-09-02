@@ -7,38 +7,6 @@ import (
 	"unicode"
 )
 
-type TokenType int
-
-const (
-	TokenNumber TokenType = iota
-	TokenString
-	TokenTrue
-	TokenFalse
-	TokenNull
-	TokenEOF
-	TokenColon        // :
-	TokenComma        // ,
-	TokenLeftBrace    // {
-	TokenRightBrace   // }
-	TokenLeftBracket  // [
-	TokenRightBracket // ]
-)
-
-type Token struct {
-	Type    TokenType
-	Literal string
-}
-
-type LexerError struct {
-	Message string
-	From    int
-	To      int
-}
-
-func (e *LexerError) Error() string {
-	return fmt.Sprintf("%s, From: %d, To: %d", e.Message, e.From, e.To)
-}
-
 type Lexer struct {
 	reader   *strings.Reader
 	position int
