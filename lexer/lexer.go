@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -51,7 +52,6 @@ func Lex(input string) ([]Token, error) {
 		if err != nil {
 			break
 		}
-
 		position++
 
 		switch {
@@ -70,17 +70,15 @@ func Lex(input string) ([]Token, error) {
 		case r == '"':
 			stringLiteral := ""
 
-			p := 0
+			start := position
 			for {
 				r, _, err := reader.ReadRune()
 				if err != nil {
-					return nil, &LexerError{Message: "syntax error", From: position - 1, To: position - 1 + p}
+					return nil, &LexerError{Message: "syntax error", From: start - 1, To: position - 1}
 				}
-
-				p++
+				position++
 
 				if r == '"' {
-					position += p
 					break
 				}
 
@@ -91,18 +89,17 @@ func Lex(input string) ([]Token, error) {
 		case unicode.IsDigit(r):
 			numberLiteral := string(r)
 
-			p := 0
+			start := position
 			for {
 				ss, _, err := reader.ReadRune()
 				if err != nil {
 					break
 				}
+				position++
 
-				p++
-
-				if !unicode.IsDigit(ss) {
+				if !unicode.IsDigit(ss) && ss != '.' {
 					reader.UnreadRune()
-					position += p - 1
+					position--
 
 					break
 				}
@@ -110,24 +107,33 @@ func Lex(input string) ([]Token, error) {
 				numberLiteral += string(ss)
 			}
 
+			_, err = strconv.ParseFloat(numberLiteral, 64)
+			if err != nil {
+				return nil, &LexerError{Message: fmt.Sprintf("unexpected number %s", numberLiteral), From: start - 1, To: position - 1}
+			}
+
 			tokens = append(tokens, Token{Type: TokenNumber, Literal: numberLiteral})
 		case isLowerLetter(r):
 			primitiveLiteral := string(r)
 
+			start := position
 			for {
 				ss, _, err := reader.ReadRune()
 				if err != nil {
 					break
 				}
+				position++
 
 				if !isLowerLetter(ss) {
 					reader.UnreadRune()
+					position--
 					break
 				}
 
 				primitiveLiteral += string(ss)
 			}
 
+			// it may be better to check in parser not lexer whether literal value is valid or not
 			switch primitiveLiteral {
 			case "true":
 				tokens = append(tokens, Token{Type: TokenTrue, Literal: primitiveLiteral})
@@ -136,10 +142,8 @@ func Lex(input string) ([]Token, error) {
 			case "null":
 				tokens = append(tokens, Token{Type: TokenNull, Literal: primitiveLiteral})
 			default:
-				return nil, &LexerError{Message: fmt.Sprintf("unexpected property '%s'", primitiveLiteral), From: position - 1, To: position - 1 + len(primitiveLiteral) - 1}
+				return nil, &LexerError{Message: fmt.Sprintf("unexpected property '%s'", primitiveLiteral), From: start - 1, To: position - 1}
 			}
-
-			position = position + len(primitiveLiteral)
 		case unicode.IsSpace(r):
 			continue
 		default:

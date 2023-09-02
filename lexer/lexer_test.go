@@ -75,6 +75,22 @@ func TestLex(t *testing.T) {
 			err: "",
 		},
 		{
+			input: "0.1",
+			expected: []Token{
+				{Type: TokenNumber, Literal: "0.1"},
+			},
+		},
+		{
+			input:    "0.1.1",
+			expected: nil,
+			err:      "unexpected number 0.1.1, From: 0, To: 4",
+		},
+		{
+			input:    `{"Hello": 1.133.1}`,
+			expected: nil,
+			err:      "unexpected number 1.133.1, From: 10, To: 16",
+		},
+		{
 			input:    "aaa",
 			expected: nil,
 			err:      "unexpected property 'aaa', From: 0, To: 2",
@@ -92,7 +108,7 @@ func TestLex(t *testing.T) {
 		{
 			input:    `{ "Hello": 100, "World": false, "!!!": True }`,
 			expected: nil,
-			err:      "unexpected character 'T', From: 40, To: 40",
+			err:      "unexpected character 'T', From: 39, To: 39",
 		},
 	}
 	for _, tt := range tests {
