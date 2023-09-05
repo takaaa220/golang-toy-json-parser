@@ -37,35 +37,54 @@ func TestLex(t *testing.T) {
 			expected: []Token{
 				{Type: TokenNumber, Literal: "123"},
 			},
-			err: "",
+		},
+		{
+			input: "-123.456",
+			expected: []Token{
+				{Type: TokenNumber, Literal: "-123.456"},
+			},
+		},
+		{
+			input: "10e+3",
+			expected: []Token{
+				{Type: TokenNumber, Literal: "10e+3"},
+			},
+		},
+		{
+			input: "10e-3",
+			expected: []Token{
+				{Type: TokenNumber, Literal: "10e-3"},
+			},
 		},
 		{
 			input: "null",
 			expected: []Token{
 				{Type: TokenNull, Literal: "null"},
 			},
-			err: "",
 		},
 		{
 			input: "true",
 			expected: []Token{
 				{Type: TokenTrue, Literal: "true"},
 			},
-			err: "",
 		},
 		{
 			input: "false",
 			expected: []Token{
 				{Type: TokenFalse, Literal: "false"},
 			},
-			err: "",
+		},
+		{
+			input: `""`,
+			expected: []Token{
+				{Type: TokenString, Literal: ""},
+			},
 		},
 		{
 			input: `"Hello, World!"`,
 			expected: []Token{
 				{Type: TokenString, Literal: "Hello, World!"},
 			},
-			err: "",
 		},
 		{
 			input: `{"Hello": "World!", "Foo": "Bar"}`,
@@ -80,7 +99,6 @@ func TestLex(t *testing.T) {
 				{Type: TokenString, Literal: "Bar"},
 				{Type: TokenRightBrace, Literal: "}"},
 			},
-			err: "",
 		},
 		{
 			input: "[1, 2, 3]",
@@ -93,7 +111,24 @@ func TestLex(t *testing.T) {
 				{Type: TokenNumber, Literal: "3"},
 				{Type: TokenRightBracket, Literal: "]"},
 			},
-			err: "",
+		},
+		{
+			input: `
+			{
+				"Hello": "World!",
+				"Foo": "Bar"
+			}`,
+			expected: []Token{
+				{Type: TokenLeftBrace, Literal: "{"},
+				{Type: TokenString, Literal: "Hello"},
+				{Type: TokenColon, Literal: ":"},
+				{Type: TokenString, Literal: "World!"},
+				{Type: TokenComma, Literal: ","},
+				{Type: TokenString, Literal: "Foo"},
+				{Type: TokenColon, Literal: ":"},
+				{Type: TokenString, Literal: "Bar"},
+				{Type: TokenRightBrace, Literal: "}"},
+			},
 		},
 		{
 			input: "0.1",

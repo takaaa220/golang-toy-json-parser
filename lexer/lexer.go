@@ -74,13 +74,13 @@ func (lexer *Lexer) NextToken() (Token, error) {
 			}
 
 			return Token{Type: TokenString, Literal: stringLiteral}, nil
-		case unicode.IsDigit(r):
+		case unicode.IsDigit(r) || r == '-':
 			numberLiteral := string(r)
 
 			start := lexer.position
 			for {
 				ss, _, err := lexer.next()
-				if err != nil || !unicode.IsDigit(ss) && ss != '.' {
+				if err != nil || !unicode.IsDigit(ss) && ss != '.' && ss != '-' && ss != '+' && ss != 'e' {
 					lexer.back()
 
 					break
