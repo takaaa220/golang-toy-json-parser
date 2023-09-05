@@ -59,6 +59,7 @@ func (lexer *Lexer) NextToken() (Token, error) {
 		case r == '"':
 			stringLiteral := ""
 
+			var before rune
 			start := lexer.position
 			for {
 				r, _, err := lexer.next()
@@ -66,11 +67,12 @@ func (lexer *Lexer) NextToken() (Token, error) {
 					return Token{}, &LexerError{Message: "syntax error", From: start - 1, To: lexer.position - 2}
 				}
 
-				if r == '"' {
+				if r == '"' && before != '\\' {
 					break
 				}
 
 				stringLiteral += string(r)
+				before = r
 			}
 
 			return Token{Type: TokenString, Literal: stringLiteral}, nil

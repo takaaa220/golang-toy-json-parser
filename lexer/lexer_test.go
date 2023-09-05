@@ -45,6 +45,29 @@ func TestLex(t *testing.T) {
 			},
 		},
 		{
+			input: `"hello \"world\"!"`,
+			expected: []Token{
+				{Type: TokenString, Literal: `hello \"world\"!`},
+			},
+		},
+		{
+			input: `{
+				"Key1": "Hello✋",
+				"Key2": "World✋"
+			}`,
+			expected: []Token{
+				{Type: TokenLeftBrace, Literal: "{"},
+				{Type: TokenString, Literal: "Key1"},
+				{Type: TokenColon, Literal: ":"},
+				{Type: TokenString, Literal: "Hello✋"},
+				{Type: TokenComma, Literal: ","},
+				{Type: TokenString, Literal: "Key2"},
+				{Type: TokenColon, Literal: ":"},
+				{Type: TokenString, Literal: "World✋"},
+				{Type: TokenRightBrace, Literal: "}"},
+			},
+		},
+		{
 			input: "10e+3",
 			expected: []Token{
 				{Type: TokenNumber, Literal: "10e+3"},
